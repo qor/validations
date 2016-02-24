@@ -12,6 +12,7 @@ func validate(scope *gorm.Scope) {
 	}
 }
 
+// RegisterCallbacks register callback into GORM DB
 func RegisterCallbacks(db *gorm.DB) {
 	callback := db.Callback()
 	callback.Create().Before("gorm:before_create").Register("validations:validate", validate)

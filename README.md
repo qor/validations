@@ -1,10 +1,10 @@
 # Validations
 
-Validations is a [GORM](https://github.com/jinzhu/gorm) extension, used to validate models when creating, updating
+Validations is used to validate [GORM-backend](https://github.com/jinzhu/gorm) models when creating, updating
 
 ### Register GORM Callbacks
 
-It is using [GORM](https://github.com/jinzhu/gorm)'s callbacks to handle validations, so you need to register callbacks to gorm DB first, do it like:
+Validations is using [GORM](https://github.com/jinzhu/gorm) callbacks to handle validations, so you need to register callbacks first:
 
 ```go
 import (
@@ -12,14 +12,16 @@ import (
   "github.com/qor/validations"
 )
 
-db, err := gorm.Open("sqlite3", "demo_db")
+func main() {
+  db, err := gorm.Open("sqlite3", "demo_db")
 
-validations.RegisterCallbacks(db)
+  validations.RegisterCallbacks(db)
+}
 ```
 
 ### Usage
 
-After register callbacks, Creating, updating will trigger the `Validate` method defined for struct, if the method has added or returned any error, the process will be rollbacked.
+After registered callbacks, creating, updating will trigger the `Validate` method that defined for your model, if the method has added or returned any error, the process will be rollbacked.
 
 ```go
 type User struct {
@@ -33,14 +35,13 @@ func (user User) Validate(db *gorm.DB) {
   }
 }
 
-db.Create(&User{Age: 10})         // won't insert the record into database
+db.Create(&User{Age: 10})         // won't insert the record into database, as the `Validate` method will return error
 
 var user User{Age: 20}
 db.Create(&user)                  // user with age 20 will be inserted into database
-db.Model(&user).Update("age", 10) // user's age won't be updated, and will return error `age need to be 18+`
+db.Model(&user).Update("age", 10) // user's age won't be updated, will return error `age need to be 18+`
 
-// If you have added more than one error, could get them with `db.GetErrors()`
-
+// If you have added more than one error, could get all of them with `db.GetErrors()`
 func (user User) Validate(db *gorm.DB) {
   if user.Age <= 18 {
     db.AddError(errors.New("age need to be 18+"))
@@ -50,7 +51,7 @@ func (user User) Validate(db *gorm.DB) {
   }
 }
 
-db.Create(&User{}).GetErrors() // => []error{}
+db.Create(&User{}).GetErrors() // => []error{"age need to be 18+", "name can't be blank"}
 ```
 
 ## [Qor Support](https://github.com/qor/qor)
@@ -71,7 +72,7 @@ func (user User) Validate(db *gorm.DB) {
 }
 ```
 
-Checkout [http://demo.getqor.com/admin/products/1](http://demo.getqor.com/admin/products/1) as demo, change Name to be blank string and save to see what happens.
+Checkout [http://demo.getqor.com/admin/products/1](http://demo.getqor.com/admin/products/1) as demo, change `Name` to be blank string and save to see what happens.
 
 ## License
 
