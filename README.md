@@ -1,10 +1,10 @@
 # Validations
 
-Validations is used to validate [GORM-backend](https://github.com/jinzhu/gorm) models when creating, updating
+Validations provides a means to validate [GORM-backend](https://github.com/jinzhu/gorm) models when creating and updating them.
 
 ### Register GORM Callbacks
 
-Validations is using [GORM](https://github.com/jinzhu/gorm) callbacks to handle validations, so you need to register callbacks first:
+Validations uses [GORM](https://github.com/jinzhu/gorm) callbacks to handle validations, so you will need to register callbacks first:
 
 ```go
 import (
@@ -21,7 +21,7 @@ func main() {
 
 ### Usage
 
-After registered callbacks, creating, updating will trigger the `Validate` method that defined for your model, if the method has added or returned any error, the process will be rollbacked.
+After callbacks have been registered, attempting to create or update any record will trigger the `Validate` method that you have implemented for your model. If your implementation adds or returns an error, the attempt will be aborted.
 
 ```go
 type User struct {
@@ -56,13 +56,13 @@ db.Create(&User{}).GetErrors() // => []error{"age need to be 18+", "name can't b
 
 ## [Qor Support](https://github.com/qor/qor)
 
-[QOR](http://getqor.com) is architected from the ground up to accelerate development and deployment of Content Management Systems, E-commerce Systems, and Business Applications, and comprised of modules that abstract common features for such system.
+[QOR](http://getqor.com) is architected from the ground up to accelerate development and deployment of Content Management Systems, E-commerce Systems, and Business Applications and as such is comprised of modules that abstract common features for such systems.
 
-Validations could be used alone, and it works nicely with QOR, if you have requirements to manage your application's data, be sure to check QOR out!
+Validations could be used alone, but it works very nicely with QOR (as a QOR Plugin) - if you have requirements to manage your application's data be sure to check QOR out!
 
 [QOR Demo:  http://demo.getqor.com/admin](http://demo.getqor.com/admin)
 
-If you want to display errors for each form field in Qor Admin, you could register your error like this:
+If you want to display errors for each form field in QOR Admin, you could register your error like this:
 
 ```go
 func (user User) Validate(db *gorm.DB) {
@@ -72,7 +72,7 @@ func (user User) Validate(db *gorm.DB) {
 }
 ```
 
-Checkout [http://demo.getqor.com/admin/products/1](http://demo.getqor.com/admin/products/1) as demo, change `Name` to be blank string and save to see what happens.
+Checkout [http://demo.getqor.com/admin/products/1](http://demo.getqor.com/admin/products/1) as demo, change `Name` to be a blank string and save to see what happens.
 
 ## License
 
