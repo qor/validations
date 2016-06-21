@@ -1,6 +1,9 @@
 package validations
 
-import "github.com/jinzhu/gorm"
+import (
+	"github.com/asaskevich/govalidator"
+	"github.com/jinzhu/gorm"
+)
 
 var skipValidations = "validations:skip_validations"
 
@@ -9,6 +12,10 @@ func validate(scope *gorm.Scope) {
 		if result, ok := scope.DB().Get(skipValidations); !(ok && result.(bool)) {
 			if !scope.HasError() {
 				scope.CallMethod("Validate")
+				_, err := govalidator.ValidateStruct(scope.IndirectValue().Interface())
+				if err != nil {
+					scope.DB().AddError(err)
+				}
 			}
 		}
 	}
