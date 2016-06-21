@@ -2,6 +2,7 @@ package validations_test
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -15,7 +16,8 @@ var db *gorm.DB
 
 type User struct {
 	gorm.Model
-	Name       string
+	Name       string `valid:"required"`
+	Password   string `valid:"length(6|10)"`
 	CompanyID  int
 	Company    Company
 	CreditCard CreditCard
@@ -80,6 +82,22 @@ func init() {
 	db = utils.TestDB()
 	validations.RegisterCallbacks(db)
 	db.AutoMigrate(&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{})
+}
+
+func TestGoValidation(t *testing.T) {
+	user := User{Name: "", Password: "123"}
+
+	result := db.Save(&user)
+	if result.Error == nil {
+		t.Errorf("Should get error when save empty user")
+	}
+
+	messages := []string{"Name can't be blank", "Password: 123 does not validate as length(6|10)"}
+	for i, err := range result.Error.(gorm.Errors).GetErrors() {
+		if messages[i] != err.Error() {
+			t.Errorf(fmt.Sprintf("Error message should be equal `%v`", messages[i]))
+		}
+	}
 }
 
 func TestSaveInvalidUser(t *testing.T) {

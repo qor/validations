@@ -1,8 +1,11 @@
 package validations
 
 import (
+	"errors"
+	"fmt"
 	"github.com/asaskevich/govalidator"
 	"github.com/jinzhu/gorm"
+	"strings"
 )
 
 var skipValidations = "validations:skip_validations"
@@ -12,9 +15,22 @@ func validate(scope *gorm.Scope) {
 		if result, ok := scope.DB().Get(skipValidations); !(ok && result.(bool)) {
 			if !scope.HasError() {
 				scope.CallMethod("Validate")
-				_, err := govalidator.ValidateStruct(scope.IndirectValue().Interface())
-				if err != nil {
-					scope.DB().AddError(err)
+				_, validatorErrors := govalidator.ValidateStruct(scope.IndirectValue().Interface())
+				if validatorErrors != nil {
+					var errorsArr govalidator.Errors
+					if e, ok := validatorErrors.(govalidator.Errors); ok {
+						errorsArr = e
+					} else {
+						errorsArr = append(errorsArr, e)
+					}
+					for _, err := range errorsArr.Errors() {
+						validatorError := err.(govalidator.Error)
+						if strings.Index(validatorError.Error(), "non zero value required") >= 0 {
+							scope.DB().AddError(errors.New(fmt.Sprintf("%v can't be blank", err.(govalidator.Error).Name)))
+						} else {
+							scope.DB().AddError(errors.New(validatorError.Error()))
+						}
+					}
 				}
 			}
 		}
