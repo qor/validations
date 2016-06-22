@@ -3,6 +3,7 @@ package validations_test
 import (
 	"errors"
 	"fmt"
+	"github.com/asaskevich/govalidator"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/qor/qor/test/utils"
@@ -18,7 +19,7 @@ type User struct {
 	Name           string `valid:"required"`
 	Password       string `valid:"length(6|20)"`
 	SecurePassword string `valid:"numeric"`
-	Email          string `valid:"email"`
+	Email          string `valid:"email,uniqEmail~Email already be token"`
 	CompanyID      int
 	Company        Company
 	CreditCard     CreditCard
@@ -27,6 +28,13 @@ type User struct {
 }
 
 func (user *User) Validate(db *gorm.DB) {
+	govalidator.CustomTypeTagMap.Set("uniqEmail", govalidator.CustomTypeValidator(func(email interface{}, context interface{}) bool {
+		var count int
+		if db.Model(&User{}).Where("email = ?", email).Count(&count); count == 0 || email == "" {
+			return true
+		}
+		return false
+	}))
 	if user.Name == "invalid" {
 		db.AddError(validations.NewError(user, "Name", "invalid user name"))
 	}
@@ -82,11 +90,17 @@ func (language *Language) Validate(db *gorm.DB) error {
 func init() {
 	db = utils.TestDB()
 	validations.RegisterCallbacks(db)
-	db.AutoMigrate(&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{})
+	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
+	for _, table := range tables {
+		if err := db.DropTableIfExists(table).Error; err != nil {
+			panic(err)
+		}
+		db.AutoMigrate(table)
+	}
 }
 
 func TestGoValidation(t *testing.T) {
-	user := User{Name: "", Password: "123123"}
+	user := User{Name: "", Password: "123123", Email: "a@gmail.com"}
 
 	result := db.Save(&user)
 	if result.Error == nil {
@@ -107,6 +121,13 @@ func TestGoValidation(t *testing.T) {
 		if messages[i] != err.Error() {
 			t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
 		}
+	}
+
+	user = User{Name: "A", Password: "123123", Email: "a@gmail.com"}
+	result = db.Save(&user)
+	user = User{Name: "B", Password: "123123", Email: "a@gmail.com"}
+	if result := db.Save(&user); result.Error.Error() != "Email already be token" {
+		t.Errorf("Should get email alredy be token error")
 	}
 }
 
