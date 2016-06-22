@@ -54,6 +54,18 @@ func (user User) Validate(db *gorm.DB) {
 db.Create(&User{}).GetErrors() // => []error{"age need to be 18+", "name can't be blank"}
 ```
 
+Qor Validation add support for [govalidator](https://github.com/asaskevich/govalidator), you could add tag into struct for some common validations, such as check required, numeric, length, etc.
+
+```
+type User struct {
+	gorm.Model
+	Name           string `valid:"required"`
+	Password       string `valid:"length(6|20)"`
+	SecurePassword string `valid:"numeric"`
+	Email          string `valid:"email"`
+}
+```
+
 ## [Qor Support](https://github.com/qor/qor)
 
 [QOR](http://getqor.com) is architected from the ground up to accelerate development and deployment of Content Management Systems, E-commerce Systems, and Business Applications and as such is comprised of modules that abstract common features for such systems.

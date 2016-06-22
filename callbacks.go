@@ -39,15 +39,6 @@ func validate(scope *gorm.Scope) {
 	}
 }
 
-func appendCustomValidation() {
-	govalidator.CustomTypeTagMap.Set("max", govalidator.CustomTypeValidator(func(url interface{}, context interface{}) bool {
-		if url.(string) != "" && !govalidator.IsURL(url.(string)) {
-			return true
-		}
-		return false
-	}))
-}
-
 // RegisterCallbacks register callback into GORM DB
 func RegisterCallbacks(db *gorm.DB) {
 	callback := db.Callback()
