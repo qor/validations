@@ -15,13 +15,15 @@ var db *gorm.DB
 
 type User struct {
 	gorm.Model
-	Name       string `valid:"required"`
-	Password   string `valid:"length(6|10)"`
-	CompanyID  int
-	Company    Company
-	CreditCard CreditCard
-	Addresses  []Address
-	Languages  []Language `gorm:"many2many:user_languages"`
+	Name           string `valid:"required"`
+	Password       string `valid:"length(6|20)"`
+	SecurePassword string `valid:"numeric"`
+	Email          string `valid:"email"`
+	CompanyID      int
+	Company        Company
+	CreditCard     CreditCard
+	Addresses      []Address
+	Languages      []Language `gorm:"many2many:user_languages"`
 }
 
 func (user *User) Validate(db *gorm.DB) {
@@ -95,12 +97,15 @@ func TestGoValidation(t *testing.T) {
 		t.Errorf("Error message should be equal `Name can't be blank`")
 	}
 
-	user = User{Name: "", Password: "123"}
+	user = User{Name: "", Password: "123", SecurePassword: "AB123", Email: "aagmail.com"}
 	result = db.Save(&user)
-	messages := []string{"Name can't be blank", "Password: 123 does not validate as length(6|10)"}
+	messages := []string{"Name can't be blank",
+		"Password is the wrong length (should be 6~20 characters)",
+		"SecurePassword is not a number",
+		"Email is not a valid email address"}
 	for i, err := range result.Error.(gorm.Errors).GetErrors() {
 		if messages[i] != err.Error() {
-			t.Errorf(fmt.Sprintf("Error message should be equal `%v`", messages[i]))
+			t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
 		}
 	}
 }

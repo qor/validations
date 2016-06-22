@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/asaskevich/govalidator"
 	"github.com/jinzhu/gorm"
+	"regexp"
 	"strings"
 )
 
@@ -17,18 +18,19 @@ func validate(scope *gorm.Scope) {
 				scope.CallMethod("Validate")
 				_, validatorErrors := govalidator.ValidateStruct(scope.IndirectValue().Interface())
 				if validatorErrors != nil {
-					var errorsArr govalidator.Errors
-					if e, ok := validatorErrors.(govalidator.Errors); ok {
-						errorsArr = e
-					} else {
-						errorsArr = append(errorsArr, validatorErrors)
-					}
-					for _, err := range errorsArr.Errors() {
-						validatorError := err.(govalidator.Error)
-						if strings.Index(validatorError.Error(), "non zero value required") >= 0 {
+					for _, err := range validatorErrors.(govalidator.Errors).Errors() {
+						if strings.Index(err.Error(), "non zero value required") >= 0 {
 							scope.DB().AddError(errors.New(fmt.Sprintf("%v can't be blank", err.(govalidator.Error).Name)))
+						} else if strings.Index(err.Error(), "as length") >= 0 {
+							reg, _ := regexp.Compile(`\(([0-9]+)\|([0-9]+)\)`)
+							submatch := reg.FindSubmatch([]byte(err.Error()))
+							scope.DB().AddError(errors.New(fmt.Sprintf("%v is the wrong length (should be %v~%v characters)", "Password", string(submatch[1]), string(submatch[2]))))
+						} else if strings.Index(err.Error(), "as numeric") >= 0 {
+							scope.DB().AddError(errors.New(fmt.Sprintf("%v is not a number", err.(govalidator.Error).Name)))
+						} else if strings.Index(err.Error(), "as email") >= 0 {
+							scope.DB().AddError(errors.New(fmt.Sprintf("%v is not a valid email address", err.(govalidator.Error).Name)))
 						} else {
-							scope.DB().AddError(errors.New(validatorError.Error()))
+							scope.DB().AddError(errors.New(err.Error()))
 						}
 					}
 				}
