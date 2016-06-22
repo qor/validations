@@ -3,13 +3,12 @@ package validations_test
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"testing"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/qor/qor/test/utils"
 	"github.com/qor/validations"
+	"regexp"
+	"testing"
 )
 
 var db *gorm.DB
@@ -85,13 +84,19 @@ func init() {
 }
 
 func TestGoValidation(t *testing.T) {
-	user := User{Name: "", Password: "123"}
+	user := User{Name: "", Password: "123123"}
 
 	result := db.Save(&user)
 	if result.Error == nil {
 		t.Errorf("Should get error when save empty user")
 	}
 
+	if result.Error.Error() != "Name can't be blank" {
+		t.Errorf("Error message should be equal `Name can't be blank`")
+	}
+
+	user = User{Name: "", Password: "123"}
+	result = db.Save(&user)
 	messages := []string{"Name can't be blank", "Password: 123 does not validate as length(6|10)"}
 	for i, err := range result.Error.(gorm.Errors).GetErrors() {
 		if messages[i] != err.Error() {

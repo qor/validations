@@ -21,7 +21,7 @@ func validate(scope *gorm.Scope) {
 					if e, ok := validatorErrors.(govalidator.Errors); ok {
 						errorsArr = e
 					} else {
-						errorsArr = append(errorsArr, e)
+						errorsArr = append(errorsArr, validatorErrors)
 					}
 					for _, err := range errorsArr.Errors() {
 						validatorError := err.(govalidator.Error)
