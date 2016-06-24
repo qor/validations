@@ -2,28 +2,39 @@ package validations_test
 
 import (
 	"errors"
-	"regexp"
-	"testing"
-
+	"fmt"
+	"github.com/asaskevich/govalidator"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/qor/qor/test/utils"
 	"github.com/qor/validations"
+	"regexp"
+	"testing"
 )
 
 var db *gorm.DB
 
 type User struct {
 	gorm.Model
-	Name       string
-	CompanyID  int
-	Company    Company
-	CreditCard CreditCard
-	Addresses  []Address
-	Languages  []Language `gorm:"many2many:user_languages"`
+	Name           string `valid:"required"`
+	Password       string `valid:"length(6|20)"`
+	SecurePassword string `valid:"numeric"`
+	Email          string `valid:"email,uniqEmail~Email already be token"`
+	CompanyID      int
+	Company        Company
+	CreditCard     CreditCard
+	Addresses      []Address
+	Languages      []Language `gorm:"many2many:user_languages"`
 }
 
 func (user *User) Validate(db *gorm.DB) {
+	govalidator.CustomTypeTagMap.Set("uniqEmail", govalidator.CustomTypeValidator(func(email interface{}, context interface{}) bool {
+		var count int
+		if db.Model(&User{}).Where("email = ?", email).Count(&count); count == 0 || email == "" {
+			return true
+		}
+		return false
+	}))
 	if user.Name == "invalid" {
 		db.AddError(validations.NewError(user, "Name", "invalid user name"))
 	}
@@ -79,7 +90,45 @@ func (language *Language) Validate(db *gorm.DB) error {
 func init() {
 	db = utils.TestDB()
 	validations.RegisterCallbacks(db)
-	db.AutoMigrate(&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{})
+	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
+	for _, table := range tables {
+		if err := db.DropTableIfExists(table).Error; err != nil {
+			panic(err)
+		}
+		db.AutoMigrate(table)
+	}
+}
+
+func TestGoValidation(t *testing.T) {
+	user := User{Name: "", Password: "123123", Email: "a@gmail.com"}
+
+	result := db.Save(&user)
+	if result.Error == nil {
+		t.Errorf("Should get error when save empty user")
+	}
+
+	if result.Error.Error() != "Name can't be blank" {
+		t.Errorf("Error message should be equal `Name can't be blank`")
+	}
+
+	user = User{Name: "", Password: "123", SecurePassword: "AB123", Email: "aagmail.com"}
+	result = db.Save(&user)
+	messages := []string{"Name can't be blank",
+		"Password is the wrong length (should be 6~20 characters)",
+		"SecurePassword is not a number",
+		"Email is not a valid email address"}
+	for i, err := range result.Error.(gorm.Errors).GetErrors() {
+		if messages[i] != err.Error() {
+			t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
+		}
+	}
+
+	user = User{Name: "A", Password: "123123", Email: "a@gmail.com"}
+	result = db.Save(&user)
+	user = User{Name: "B", Password: "123123", Email: "a@gmail.com"}
+	if result := db.Save(&user); result.Error.Error() != "Email already be token" {
+		t.Errorf("Should get email alredy be token error")
+	}
 }
 
 func TestSaveInvalidUser(t *testing.T) {
