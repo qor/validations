@@ -18,8 +18,12 @@ func validate(scope *gorm.Scope) {
 				resource := scope.IndirectValue().Interface()
 				_, validatorErrors := govalidator.ValidateStruct(resource)
 				if validatorErrors != nil {
-					for _, err := range flatValidatorErrors(validatorErrors) {
-						scope.DB().AddError(formattedError(err, resource))
+					if errors, ok := validatorErrors.(govalidator.Errors); ok {
+						for _, err := range flatValidatorErrors(errors) {
+							scope.DB().AddError(formattedError(err, resource))
+						}
+					} else {
+						scope.DB().AddError(validatorErrors)
 					}
 				}
 			}
@@ -27,9 +31,9 @@ func validate(scope *gorm.Scope) {
 	}
 }
 
-func flatValidatorErrors(i interface{}) []govalidator.Error {
+func flatValidatorErrors(validatorErrors govalidator.Errors) []govalidator.Error {
 	resultErrors := []govalidator.Error{}
-	for _, validatorError := range i.(govalidator.Errors).Errors() {
+	for _, validatorError := range validatorErrors.Errors() {
 		if errors, ok := validatorError.(govalidator.Errors); ok {
 			for _, e := range errors {
 				resultErrors = append(resultErrors, e.(govalidator.Error))
