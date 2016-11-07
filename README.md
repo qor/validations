@@ -4,7 +4,7 @@ Validations provides a means to validate [GORM-backend](https://github.com/jinzh
 
 ## Documentation
 
-<https://doc.getqor.com/helpers/validation.html>
+<https://doc.getqor.com/plugins/validation.html>
 
 ## License
 
