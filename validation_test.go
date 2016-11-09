@@ -3,13 +3,14 @@ package validations_test
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"testing"
+
 	"github.com/asaskevich/govalidator"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/qor/qor/test/utils"
 	"github.com/qor/validations"
-	"regexp"
-	"testing"
 )
 
 var db *gorm.DB
@@ -117,7 +118,7 @@ func TestGoValidation(t *testing.T) {
 		"Password is the wrong length (should be 6~20 characters)",
 		"SecurePassword is not a number",
 		"Email is not a valid email address"}
-	for i, err := range result.Error.(gorm.Errors).GetErrors() {
+	for i, err := range result.GetErrors() {
 		if messages[i] != err.Error() {
 			t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
 		}
