@@ -2,10 +2,11 @@ package validations
 
 import (
 	"fmt"
-	"github.com/asaskevich/govalidator"
-	"github.com/jinzhu/gorm"
 	"regexp"
 	"strings"
+
+	"github.com/asaskevich/govalidator"
+	"github.com/jinzhu/gorm"
 )
 
 var skipValidations = "validations:skip_validations"
@@ -15,15 +16,17 @@ func validate(scope *gorm.Scope) {
 		if result, ok := scope.DB().Get(skipValidations); !(ok && result.(bool)) {
 			if !scope.HasError() {
 				scope.CallMethod("Validate")
-				resource := scope.IndirectValue().Interface()
-				_, validatorErrors := govalidator.ValidateStruct(resource)
-				if validatorErrors != nil {
-					if errors, ok := validatorErrors.(govalidator.Errors); ok {
-						for _, err := range flatValidatorErrors(errors) {
-							scope.DB().AddError(formattedError(err, resource))
+				if scope.Value != nil {
+					resource := scope.IndirectValue().Interface()
+					_, validatorErrors := govalidator.ValidateStruct(resource)
+					if validatorErrors != nil {
+						if errors, ok := validatorErrors.(govalidator.Errors); ok {
+							for _, err := range flatValidatorErrors(errors) {
+								scope.DB().AddError(formattedError(err, resource))
+							}
+						} else {
+							scope.DB().AddError(validatorErrors)
 						}
-					} else {
-						scope.DB().AddError(validatorErrors)
 					}
 				}
 			}
