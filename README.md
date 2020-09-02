@@ -56,15 +56,17 @@ db.Create(&User{}).GetErrors() // => []error{"age need to be 18+", "name can't b
 
 ## [Govalidator](https://github.com/asaskevich/govalidator) integration
 
-Qor [Validations](https://github.com/qor/validations) supports [govalidator](https://github.com/asaskevich/govalidator), so you could add a tag into your struct for some common *validations*, such as *check required*, *numeric*, *length*, etc.
+Qor [Validations](https://github.com/qor/validations) supports [govalidator](https://github.com/asaskevich/govalidator), so you could add a tag into your struct for some common *validations*, such as *check required*, *numeric*, *length*, etc. 
+*Use "," for separation between validations*
 
 ```
 type User struct {
   gorm.Model
-  Name           string `valid:"required"`
-  Password       string `valid:"length(6|20)"`
-  SecurePassword string `valid:"numeric"`
-  Email          string `valid:"email"`
+  Name              string `valid:"required"`
+  Password          string `valid:"length(6|20)"`
+  SecurePassword    string `valid:"numeric"`
+  Email             string `valid:"email"`
+  Username          string `valid:"required,length(6|20)"`
 }
 ```
 

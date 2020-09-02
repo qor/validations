@@ -20,7 +20,7 @@ type User struct {
 	Name           string `valid:"required"`
 	Password       string `valid:"length(6|20)"`
 	SecurePassword string `valid:"numeric"`
-	Email          string `valid:"email,uniqEmail~Email already be token"`
+	Email          string `valid:"email,uniqEmail~Email already be taken"`
 	CompanyID      int
 	Company        Company
 	CreditCard     CreditCard
@@ -127,8 +127,8 @@ func TestGoValidation(t *testing.T) {
 	user = User{Name: "A", Password: "123123", Email: "a@gmail.com"}
 	result = db.Save(&user)
 	user = User{Name: "B", Password: "123123", Email: "a@gmail.com"}
-	if result := db.Save(&user); result.Error.Error() != "Email already be token" {
-		t.Errorf("Should get email alredy be token error")
+	if result := db.Save(&user); result.Error.Error() != "Email already be taken" {
+		t.Errorf("Should get email alredy be taken error")
 	}
 }
 
