@@ -2,40 +2,66 @@ package validations
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
-var skipValidations = "validations:skip_validations"
+const skipValidations = "validations:skip_validations"
 
-func validate(scope *gorm.Scope) {
-	if _, ok := scope.Get("gorm:update_column"); !ok {
-		if result, ok := scope.DB().Get(skipValidations); !(ok && result.(bool)) {
-			if !scope.HasError() {
-				scope.CallMethod("Validate")
-				if scope.Value != nil {
-					resource := scope.IndirectValue().Interface()
-					_, validatorErrors := govalidator.ValidateStruct(resource)
-					if validatorErrors != nil {
-						if errors, ok := validatorErrors.(govalidator.Errors); ok {
-							for _, err := range flatValidatorErrors(errors) {
-								scope.DB().AddError(formattedError(err, resource))
-							}
-						} else {
-							scope.DB().AddError(validatorErrors)
-						}
-					}
+func validate(db *gorm.DB) {
+	if _, ok := db.Get("gorm:update_column"); ok {
+		return
+	}
+	result, ok := db.Get(skipValidations)
+	if ok && result.(bool) {
+		return
+	}
+	if db.Error != nil {
+		return
+	}
+	if method, ok := db.Statement.Schema.ModelType.MethodByName("Validate"); ok {
+		method.Func.Call([]reflect.Value{})
+	}
+	if db.Statement != nil {
+		switch db.Statement.ReflectValue.Kind() {
+		case reflect.Slice, reflect.Array:
+			for i := 0; i < db.Statement.ReflectValue.Len(); i++ {
+				resource := db.Statement.ReflectValue.Index(i).Interface()
+				_, validatorErrors := govalidator.ValidateStruct(resource)
+				if validatorErrors == nil {
+					return
 				}
+				if errors, ok := validatorErrors.(govalidator.Errors); ok {
+					for _, err := range flatValidatorErrors(errors) {
+						_ = db.AddError(formattedError(err, resource))
+					}
+				} else {
+					_ = db.AddError(validatorErrors)
+				}
+			}
+		case reflect.Struct:
+			resource := db.Statement.ReflectValue.Interface()
+			_, validatorErrors := govalidator.ValidateStruct(resource)
+			if validatorErrors == nil {
+				return
+			}
+			if errors, ok := validatorErrors.(govalidator.Errors); ok {
+				for _, err := range flatValidatorErrors(errors) {
+					_ = db.AddError(formattedError(err, resource))
+				}
+			} else {
+				_ = db.AddError(validatorErrors)
 			}
 		}
 	}
 }
 
 func flatValidatorErrors(validatorErrors govalidator.Errors) []govalidator.Error {
-	resultErrors := []govalidator.Error{}
+	resultErrors := make([]govalidator.Error, 0)
 	for _, validatorError := range validatorErrors.Errors() {
 		if errors, ok := validatorError.(govalidator.Errors); ok {
 			for _, e := range errors {
@@ -67,13 +93,20 @@ func formattedError(err govalidator.Error, resource interface{}) error {
 
 }
 
-// RegisterCallbacks register callback into GORM DB
-func RegisterCallbacks(db *gorm.DB) {
+// RegisterCallbacks register callbacks into GORM DB
+func RegisterCallbacks(db *gorm.DB) error {
 	callback := db.Callback()
 	if callback.Create().Get("validations:validate") == nil {
-		callback.Create().Before("gorm:before_create").Register("validations:validate", validate)
+		err := callback.Create().Before("gorm:before_create").Register("validations:validate", validate)
+		if err != nil {
+			return err
+		}
 	}
 	if callback.Update().Get("validations:validate") == nil {
-		callback.Update().Before("gorm:before_update").Register("validations:validate", validate)
+		err := callback.Update().Before("gorm:before_update").Register("validations:validate", validate)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }

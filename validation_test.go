@@ -2,15 +2,13 @@ package validations_test
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/jinzhu/gorm"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/qor/qor/test/utils"
-	"github.com/qor/validations"
+	"github.com/hirokazumiyaji/validations"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var db *gorm.DB
@@ -29,15 +27,15 @@ type User struct {
 }
 
 func (user *User) Validate(db *gorm.DB) {
-	govalidator.CustomTypeTagMap.Set("uniqEmail", govalidator.CustomTypeValidator(func(email interface{}, context interface{}) bool {
-		var count int
+	govalidator.CustomTypeTagMap.Set("uniqEmail", func(email interface{}, context interface{}) bool {
+		count := int64(0)
 		if db.Model(&User{}).Where("email = ?", email).Count(&count); count == 0 || email == "" {
 			return true
 		}
 		return false
-	}))
+	})
 	if user.Name == "invalid" {
-		db.AddError(validations.NewError(user, "Name", "invalid user name"))
+		_ = db.AddError(validations.NewError(user, "Name", "invalid user name"))
 	}
 }
 
@@ -48,7 +46,7 @@ type Company struct {
 
 func (company *Company) Validate(db *gorm.DB) {
 	if company.Name == "invalid" {
-		db.AddError(errors.New("invalid company name"))
+		_ = db.AddError(errors.New("invalid company name"))
 	}
 }
 
@@ -60,7 +58,7 @@ type CreditCard struct {
 
 func (card *CreditCard) Validate(db *gorm.DB) {
 	if !regexp.MustCompile("^(\\d){13,16}$").MatchString(card.Number) {
-		db.AddError(validations.NewError(card, "Number", "invalid card number"))
+		_ = db.AddError(validations.NewError(card, "Number", "invalid card number"))
 	}
 }
 
@@ -72,7 +70,7 @@ type Address struct {
 
 func (address *Address) Validate(db *gorm.DB) {
 	if address.Address == "invalid" {
-		db.AddError(validations.NewError(address, "Address", "invalid address"))
+		_ = db.AddError(validations.NewError(address, "Address", "invalid address"))
 	}
 }
 
@@ -81,7 +79,7 @@ type Language struct {
 	Code string
 }
 
-func (language *Language) Validate(db *gorm.DB) error {
+func (language *Language) Validate(_ *gorm.DB) error {
 	if language.Code == "invalid" {
 		return validations.NewError(language, "Code", "invalid language")
 	}
@@ -89,25 +87,30 @@ func (language *Language) Validate(db *gorm.DB) error {
 }
 
 func init() {
-	db = utils.TestDB()
-	validations.RegisterCallbacks(db)
+	var err error
+	db, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+	err = validations.RegisterCallbacks(db)
+	if err != nil {
+		panic(err)
+	}
 	tables := []interface{}{&User{}, &Company{}, &CreditCard{}, &Address{}, &Language{}}
 	for _, table := range tables {
-		if err := db.DropTableIfExists(table).Error; err != nil {
+		err = db.AutoMigrate(table)
+		if err != nil {
 			panic(err)
 		}
-		db.AutoMigrate(table)
 	}
 }
 
 func TestGoValidation(t *testing.T) {
 	user := User{Name: "", Password: "123123", Email: "a@gmail.com"}
-
 	result := db.Save(&user)
 	if result.Error == nil {
 		t.Errorf("Should get error when save empty user")
 	}
-
 	if result.Error.Error() != "Name can't be blank" {
 		t.Errorf("Error message should be equal `Name can't be blank`")
 	}
@@ -118,9 +121,18 @@ func TestGoValidation(t *testing.T) {
 		"Password is the wrong length (should be 6~20 characters)",
 		"SecurePassword is not a number",
 		"Email is not a valid email address"}
-	for i, err := range result.GetErrors() {
+	i := 0
+	for {
+		err := errors.Unwrap(result.Error)
+		if err == nil {
+			break
+		}
+		if len(messages) < i {
+			t.Error("error count is short")
+			break
+		}
 		if messages[i] != err.Error() {
-			t.Errorf(fmt.Sprintf("Error message should be equal `%v`, but it is `%v`", messages[i], err.Error()))
+			t.Errorf("expected: `%v`, actual: `%v`", messages[i], err.Error())
 		}
 	}
 
@@ -134,7 +146,6 @@ func TestGoValidation(t *testing.T) {
 
 func TestSaveInvalidUser(t *testing.T) {
 	user := User{Name: "invalid"}
-
 	if result := db.Save(&user); result.Error == nil {
 		t.Errorf("Should get error when save invalid user")
 	}
@@ -145,7 +156,6 @@ func TestSaveInvalidCompany(t *testing.T) {
 		Name:    "valid",
 		Company: Company{Name: "invalid"},
 	}
-
 	if result := db.Save(&user); result.Error == nil {
 		t.Errorf("Should get error when save invalid company")
 	}
@@ -157,7 +167,6 @@ func TestSaveInvalidCreditCard(t *testing.T) {
 		Company:    Company{Name: "valid"},
 		CreditCard: CreditCard{Number: "invalid"},
 	}
-
 	if result := db.Save(&user); result.Error == nil {
 		t.Errorf("Should get error when save invalid credit card")
 	}
@@ -170,7 +179,6 @@ func TestSaveInvalidAddresses(t *testing.T) {
 		CreditCard: CreditCard{Number: "4111111111111111"},
 		Addresses:  []Address{{Address: "invalid"}},
 	}
-
 	if result := db.Save(&user); result.Error == nil {
 		t.Errorf("Should get error when save invalid addresses")
 	}
@@ -184,7 +192,6 @@ func TestSaveInvalidLanguage(t *testing.T) {
 		Addresses:  []Address{{Address: "valid"}},
 		Languages:  []Language{{Code: "invalid"}},
 	}
-
 	if result := db.Save(&user); result.Error == nil {
 		t.Errorf("Should get error when save invalid language")
 	}
@@ -198,7 +205,6 @@ func TestSaveAllValidData(t *testing.T) {
 		Addresses:  []Address{{Address: "valid1"}, {Address: "valid2"}},
 		Languages:  []Language{{Code: "valid1"}, {Code: "valid2"}},
 	}
-
 	if result := db.Save(&user); result.Error != nil {
 		t.Errorf("Should get no error when save valid data, but got: %v", result.Error)
 	}

@@ -2,8 +2,8 @@ package validations
 
 import (
 	"fmt"
-
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
+	"reflect"
 )
 
 // NewError generate a new error for a model's field
@@ -20,8 +20,21 @@ type Error struct {
 
 // Label is a label including model type, primary key and column name
 func (err Error) Label() string {
-	scope := gorm.Scope{Value: err.Resource}
-	return fmt.Sprintf("%v_%v_%v", scope.GetModelStruct().ModelType.Name(), scope.PrimaryKeyValue(), err.Column)
+	db := gorm.DB{
+		Statement: &gorm.Statement{
+			ReflectValue: reflect.ValueOf(err.Resource),
+		},
+	}
+	if len(db.Statement.Schema.PrimaryFields) > 1 {
+		v := make([]interface{}, 0)
+		for _, f := range db.Statement.Schema.PrimaryFields {
+			v = append(v, db.Statement.ReflectValue.FieldByName(f.Name))
+		}
+		return fmt.Sprintf("%v_%v_%v", db.Statement.Schema.ModelType.Name(), v, err.Column)
+	} else {
+		v := db.Statement.ReflectValue.FieldByName(db.Statement.Schema.PrimaryFields[0].Name)
+		return fmt.Sprintf("%v_%v_%v", db.Statement.Schema.ModelType.Name(), v, err.Column)
+	}
 }
 
 // Error show error message
