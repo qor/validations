@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 var skipValidations = "validations:skip_validations"
