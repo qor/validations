@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/jinzhu/gorm"
+	"github.com/go-gorm/gorm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/qor/qor/test/utils"
 	"github.com/qor/validations"

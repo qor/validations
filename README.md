@@ -1,14 +1,14 @@
 # Validations
 
-Validations provides a means to [*validate*](https://en.wikipedia.org/wiki/Data_validation) [GORM](https://github.com/jinzhu/gorm) models when creating and updating them.
+Validations provides a means to [*validate*](https://en.wikipedia.org/wiki/Data_validation) [GORM](https://gorm.io/gorm) models when creating and updating them.
 
 ### Register GORM Callbacks
 
-Validations uses [GORM](https://github.com/jinzhu/gorm) callbacks to handle *validations*, so you will need to register callbacks first:
+Validations uses [GORM](https://gorm.io/gorm) callbacks to handle *validations*, so you will need to register callbacks first:
 
 ```go
 import (
-  "github.com/jinzhu/gorm"
+  "github.com/go-gorm/gorm"
   "github.com/qor/validations"
 )
 
