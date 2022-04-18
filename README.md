@@ -8,7 +8,7 @@ Validations uses [GORM](https://github.com/jinzhu/gorm) callbacks to handle *val
 
 ```go
 import (
-  "github.com/jinzhu/gorm"
+  "gorm.io/gorm"
   "github.com/qor/validations"
 )
 
